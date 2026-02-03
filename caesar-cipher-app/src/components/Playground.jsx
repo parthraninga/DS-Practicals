@@ -33,7 +33,7 @@ const Playground = () => {
       }
 
       const data = await response.json()
-      setOutputText(data.result || data.text || data.output || '')
+      setOutputText(data.encrypted_text || data.result || data.text || data.output || '')
     } catch (err) {
       setError('Failed to process your request. Please try again.')
       console.error('Error:', err)
