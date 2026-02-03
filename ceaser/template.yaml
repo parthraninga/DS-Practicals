@@ -1,0 +1,132 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: CloudFormation template for Caesar Cipher Lambda Function with API Gateway
+
+Resources:
+  CaesarCipherFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: CaesarCipherFunction
+      Description: Lambda function to encrypt text using Caesar cipher
+      Runtime: python3.13
+      Handler: index.lambda_handler
+      CodeUri: .
+      MemorySize: 128
+      Timeout: 10
+      Role: !GetAtt CaesarCipherLambdaRole.Arn
+      Environment:
+        Variables:
+          LOG_LEVEL: INFO
+      Events:
+        CaesarCipherAPI:
+          Type: Api
+          Properties:
+            RestApiId: !Ref CaesarCipherApiGateway
+            Path: /ceaser
+            Method: POST
+
+  CaesarCipherApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: CaesarCipherAPI
+      StageName: prod
+      Cors:
+        AllowMethods: "'POST,OPTIONS'"
+        AllowHeaders: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      DefinitionBody:
+        openapi: 3.0.1
+        info:
+          title: Caesar Cipher API
+          version: '1.0'
+        paths:
+          /ceaser:
+            post:
+              summary: Encrypt text using Caesar cipher
+              requestBody:
+                required: true
+                content:
+                  application/json:
+                    schema:
+                      type: object
+                      required:
+                        - text
+                        - key
+                      properties:
+                        text:
+                          type: string
+                          description: The plaintext to be encrypted
+                        key:
+                          type: integer
+                          description: The shift value for the Caesar cipher
+              responses:
+                '200':
+                  description: Successful encryption
+                  content:
+                    application/json:
+                      schema:
+                        type: object
+                        properties:
+                          original_text:
+                            type: string
+                          key:
+                            type: integer
+                          encrypted_text:
+                            type: string
+                '400':
+                  description: Bad request
+              x-amazon-apigateway-integration:
+                type: aws_proxy
+                httpMethod: POST
+                uri: !Sub 'arn:aws:apigateway:${AWS::Region}:lambda:path/2015-03-31/functions/${CaesarCipherFunction.Arn}/invocations'
+                passthroughBehavior: when_no_match
+
+  CaesarCipherLambdaRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: CaesarCipherLambdaRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: CaesarCipherLambdaPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:CreateLogGroup
+                  - logs:CreateLogStream
+                  - logs:PutLogEvents
+                Resource: !Sub 'arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/CaesarCipherFunction:*'
+
+Outputs:
+  CaesarCipherFunctionArn:
+    Description: ARN of the Caesar Cipher Lambda Function
+    Value: !GetAtt CaesarCipherFunction.Arn
+    Export:
+      Name: CaesarCipherFunctionArn
+  
+  CaesarCipherFunctionName:
+    Description: Name of the Caesar Cipher Lambda Function
+    Value: !Ref CaesarCipherFunction
+    Export:
+      Name: CaesarCipherFunctionName
+  
+  CaesarCipherApiUrl:
+    Description: URL of the Caesar Cipher API Gateway endpoint
+    Value: !Sub 'https://${CaesarCipherApiGateway}.execute-api.${AWS::Region}.amazonaws.com/prod/ceaser'
+    Export:
+      Name: CaesarCipherApiUrl
+  
+  CaesarCipherApiId:
+    Description: API Gateway ID
+    Value: !Ref CaesarCipherApiGateway
+    Export:
+      Name: CaesarCipherApiId

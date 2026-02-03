@@ -1,0 +1,2 @@
+# No external dependencies required for this Lambda function
+# Python 3.11 standard library is sufficient
